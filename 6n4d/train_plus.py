@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # 注意：env.py 的逻辑是 "如果数据量 > target_size 则采样"，设大一点就能全量加载
     test_env = SOSPruningEnvBonus(generator, DATASET_TEST, device=DEVICE, train_data_size=100000)
 
-    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=512, embed_dim=8)
+    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=512, embed_dim=16)
 
     print("\n" + "=" * 60)
     print("STARTING RL TRAINING (With Train/Test Evaluation)")
@@ -67,7 +67,7 @@ if __name__ == '__main__':
             ep_reward += reward
 
         if agent.epsilon > agent.epsilon_min:
-            agent.epsilon *= agent.epsilon_decay  ** 1.5
+            agent.epsilon *= agent.epsilon_decay  # ** 1.5
 
         rewards_history.append(ep_reward)
         train_gap_history.append(env.min_feasible_size - env.current_gt_size)

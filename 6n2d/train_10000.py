@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # === 修改点 1：定义 Train 和 Test 数据集路径 ===
     DATASET_TRAIN = "./data/train.json"
     DATASET_TEST = "./data/test.json"
-    DEVICE = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+    DEVICE = 'cuda:2' if torch.cuda.is_available() else 'cpu'
 
     generator = SOSDataGenerator(num_vars=6, degree=2)
 
@@ -43,8 +43,8 @@ if __name__ == '__main__':
     eval_test_gaps = []
     eval_epoch_history = []
 
-    TOTAL_EPISODES = 30000
-    EVAL_INTERVAL = 1500
+    TOTAL_EPISODES = 50000
+    EVAL_INTERVAL = 2000
 
     for episode in range(TOTAL_EPISODES):
         # --- 1. 训练循环 (仅使用 env) ---

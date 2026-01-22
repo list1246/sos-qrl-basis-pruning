@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # === 修改点 1：定义 Train 和 Test 数据集路径 ===
     DATASET_TRAIN = "./data/train.json"
     DATASET_TEST = "./data/test.json"
-    DEVICE = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+    DEVICE = 'cuda:3' if torch.cuda.is_available() else 'cpu'
 
     generator = SOSDataGenerator(num_vars=5, degree=2)
 

@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # 注意：env.py 的逻辑是 "如果数据量 > target_size 则采样"，设大一点就能全量加载
     test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=100000)
 
-    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=512)
+    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=512, embed_dim=16)
 
     print("\n" + "=" * 60)
     print("STARTING RL TRAINING (With Train/Test Evaluation)")

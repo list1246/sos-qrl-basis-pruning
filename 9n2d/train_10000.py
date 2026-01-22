@@ -16,7 +16,7 @@ if __name__ == '__main__':
     DATASET_TEST = "./data/test.json"
     DEVICE = 'cuda:1' if torch.cuda.is_available() else 'cpu'
 
-    generator = SOSDataGenerator(num_vars=8, degree=2)
+    generator = SOSDataGenerator(num_vars=9, degree=2)
 
     # === 修改点 2：初始化两个环境 ===
     # 训练环境：使用 train.json，限制采样 10000 条用于训练 (train_data_size=10000)
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # 注意：env.py 的逻辑是 "如果数据量 > target_size 则采样"，设大一点就能全量加载
     test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=100000)
 
-    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=128)
+    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE)
 
     print("\n" + "=" * 60)
     print("STARTING RL TRAINING (With Train/Test Evaluation)")
