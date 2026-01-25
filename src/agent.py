@@ -8,7 +8,8 @@ from src.buffer import PrioritizedReplayBuffer
 
 
 class DoubleDQNAgentPER:
-    def __init__(self, coeff_dim, mask_dim, device='cuda', lr=1e-4, gamma=0.99, base_dim=256, embed_dim=8):
+    def __init__(self, coeff_dim, mask_dim, device='cuda', lr=1e-4, gamma=0.99, base_dim=256, embed_dim=8, capacity=50000, 
+                total_episode=None, batch_size=256):
         self.device = device
         self.gamma = gamma
         self.epsilon = 1.0
@@ -21,8 +22,16 @@ class DoubleDQNAgentPER:
         self.target_net.eval()
 
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=lr)
-        self.memory = PrioritizedReplayBuffer(capacity=50000, alpha=0.6)
-        self.batch_size = 256
+
+        if total_episode is not None:
+            self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=total_episode, eta_min=1e-6)
+            print(f"[Agent] LR Scheduler enabled: CosineAnnealingLR (T_max={total_episode})")
+        else:
+            self.scheduler = None
+            print("[Agent] LR Scheduler disabled (Fixed LR)")
+
+        self.memory = PrioritizedReplayBuffer(capacity=capacity, alpha=0.6)
+        self.batch_size = batch_size
         self.beta = 0.4
         self.beta_increment = 1e-5
         self.mask_dim = mask_dim
