@@ -43,8 +43,8 @@ if __name__ == '__main__':
     eval_test_gaps = []
     eval_epoch_history = []
 
-    TOTAL_EPISODES = 30000
-    EVAL_INTERVAL = 2000
+    TOTAL_EPISODES = 50000
+    EVAL_INTERVAL = 2500
 
     for episode in range(TOTAL_EPISODES):
         # --- 1. 训练循环 (仅使用 env) ---
