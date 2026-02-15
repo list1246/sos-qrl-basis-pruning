@@ -6,28 +6,31 @@ import os
 import torch
 import numpy as np
 from src import *
-from env_custom import SOSPruningEnvBonus
 
 if __name__ == '__main__':
+    # 测试base_dim, embed_dim, 余弦退火
     set_seed(2026)
     create_dir()
 
     # === 修改点 1：定义 Train 和 Test 数据集路径 ===
     DATASET_TRAIN = "./data/train.json"
     DATASET_TEST = "./data/test.json"
-    DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    DEVICE = 'cuda:3' if torch.cuda.is_available() else 'cpu'
 
-    generator = SOSDataGenerator(num_vars=6, degree=4)
+    TOTAL_EPISODES = 100000
+    EVAL_INTERVAL = 10000
+
+    generator = SOSDataGenerator(num_vars=7, degree=4)
 
     # === 修改点 2：初始化两个环境 ===
     # 训练环境：使用 train.json，限制采样 10000 条用于训练 (train_data_size=10000)
-    env = SOSPruningEnvBonus(generator, DATASET_TRAIN, device=DEVICE, train_data_size=10000)
+    env = SOSPruningEnvGT(generator, DATASET_TRAIN, device=DEVICE, train_data_size=10000)
 
     # 测试环境：使用 test.json，设一个很大的数以加载全部测试集 (train_data_size=100000)
     # 注意：env.py 的逻辑是 "如果数据量 > target_size 则采样"，设大一点就能全量加载
-    test_env = SOSPruningEnvBonus(generator, DATASET_TEST, device=DEVICE, train_data_size=100000)
+    test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=10000)
 
-    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=512, embed_dim=16)
+    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=2048, embed_dim=64, total_episode=TOTAL_EPISODES, batch_size=512)
 
     print("\n" + "=" * 60)
     print("STARTING RL TRAINING (With Train/Test Evaluation)")
@@ -44,10 +47,7 @@ if __name__ == '__main__':
     eval_test_gaps = []
     eval_epoch_history = []
 
-    TOTAL_EPISODES = 150000
-    EVAL_INTERVAL = 5000
-
-    for episode in range(TOTAL_EPISODES):
+    for episode in range(TOTAL_EPISODES+100000):
         # --- 1. 训练循环 (仅使用 env) ---
         state = env.reset()
         ep_reward = 0
@@ -67,13 +67,16 @@ if __name__ == '__main__':
             ep_reward += reward
 
         if agent.epsilon > agent.epsilon_min:
-            agent.epsilon *= agent.epsilon_decay  # ** 1.5
+            agent.epsilon *= agent.epsilon_decay
 
         rewards_history.append(ep_reward)
         train_gap_history.append(env.min_feasible_size - env.current_gt_size)
 
         if episode % 20 == 0:
             agent.update_target_network()
+        
+        if agent.scheduler is not None and len(agent.memory) > agent.batch_size and episode < TOTAL_EPISODES:
+            agent.scheduler.step()
 
         # --- 2. 日志打印 ---
         if (episode + 1) % 100 == 0:
