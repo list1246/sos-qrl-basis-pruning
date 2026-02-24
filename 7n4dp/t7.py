@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # === 修改点 1：定义 Train 和 Test 数据集路径 ===
     DATASET_TRAIN = "./data/train.json"
     DATASET_TEST = "./data/test.json"
-    DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    DEVICE = 'cuda:3' if torch.cuda.is_available() else 'cpu'
 
     TOTAL_EPISODES = 200000
     EVAL_INTERVAL = 10000
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     eval_test_gaps = []
     eval_epoch_history = []
 
-    for episode in range(TOTAL_EPISODES+800000):
+    for episode in range(TOTAL_EPISODES+400000):
         # --- 1. 训练循环 (仅使用 env) ---
         state = env.reset()
         ep_reward = 0
