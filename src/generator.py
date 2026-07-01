@@ -4,16 +4,16 @@ import os
 import numpy as np
 
 
-# # 必须在 import numpy 或 torch 之前设置
+# # Must be set before importing numpy or torch
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 class SOSDataGenerator:
     def __init__(self, num_vars=4, degree=4):
         """
-        初始化 SOS 数据生成器
-        :param num_vars: 变量数量 (n)
-        :param degree: 多项式最高次数 (2d), 必须是偶数
+        Initialize the SOS data generator
+        :param num_vars: number of variables (n)
+        :param degree: maximum polynomial degree (2d), must be even
         """
         if degree % 2 != 0:
             raise ValueError("Degree (2d) must be even.")
@@ -22,16 +22,16 @@ class SOSDataGenerator:
         self.degree = degree
         self.half_degree = degree // 2
 
-        # 1. 构建基向量 Z(x) 的单项式 (次数 <= d)
+        # 1. Build monomials for the basis vector Z(x) (Degree <= d)
         self.basis_monomials = self._get_monomials(self.n, self.half_degree)
         self.mask_dim = len(self.basis_monomials)
 
-        # 2. 构建多项式 P(x) 的单项式 (次数 <= 2d)
+        # 2. Build monomials for polynomial P(x) (Degree <= 2d)
         self.poly_monomials = self._get_monomials(self.n, self.degree)
         self.coeff_dim = len(self.poly_monomials)
 
-        # 3. 构建映射表: Q_to_P_map
-        # 将 Q 矩阵的 (i, j) 映射到 P 系数向量的索引 k
+        # 3. Build the mapping table: Q_to_P_map
+        # Map entry (i, j) of Q to index k in the P coefficient vector
         self.Q_to_P_map = {}
         self.poly_monomials_to_idx = {m: i for i, m in enumerate(self.poly_monomials)}
         self._build_map()
@@ -41,7 +41,7 @@ class SOSDataGenerator:
         print(f"  - Poly Dim (Coeffs): {self.coeff_dim}")
 
     def _get_monomials(self, n, d):
-        """生成所有变量 n，次数 <= d 的单项式指数元组"""
+        """Generate exponent tuples for all monomials in n variables with degree <= d"""
         monomials = []
         for k in range(d + 1):
             for p in self._partitions(k, n):
@@ -49,7 +49,7 @@ class SOSDataGenerator:
         return sorted(monomials)
 
     def _partitions(self, total, n):
-        """生成和为 total，长度为 n 的非负整数元组"""
+        """Generate nonnegative integer tuples of length n whose sum is total"""
         if n == 1:
             yield (total,)
             return
@@ -58,7 +58,7 @@ class SOSDataGenerator:
                 yield (i,) + p
 
     def _build_map(self):
-        """构建 Q矩阵 到 P系数 的索引映射"""
+        """Build the index mapping from the Q matrix to P coefficients"""
         for i in range(self.mask_dim):
             for j in range(self.mask_dim):
                 exp1 = self.basis_monomials[i]
@@ -72,7 +72,7 @@ class SOSDataGenerator:
                     raise ValueError(f"Product monomial {product_exp} not found in poly basis.")
 
     def _generate_general_psd_matrix(self, dim, rank=None):
-        """生成通用的半定正矩阵"""
+        """Generate a generic positive semidefinite matrix"""
         if rank is None:
             rank = dim
         H = np.random.randn(dim, rank)
@@ -86,7 +86,7 @@ class SOSDataGenerator:
         return Q
 
     def _Q_to_coeffs(self, Q):
-        """将 Q 矩阵累加到系数向量"""
+        """Accumulate the Q matrix into the coefficient vector"""
         coeffs = np.zeros(self.coeff_dim)
         for (i, j), k in self.Q_to_P_map.items():
             coeffs[k] += Q[i, j]
@@ -115,9 +115,9 @@ class SOSDataGenerator:
         return " + ".join(parts)
 
     # def generate_dataset(self, total_samples=200000, ratio=(1, 1, 1, 3)):
-    #     """生成包含 minimal_mask (理论最小基) 的数据集"""
+    #     """Generate a dataset containing minimal_mask (the theoretical minimal basis)"""
 
-    #     # 计算各类型数量
+    #     # Compute the count for each type
     #     unit = total_samples // sum(ratio)
     #     count_robust = unit * ratio[0]
     #     count_redundant = unit * ratio[1]
@@ -136,46 +136,46 @@ class SOSDataGenerator:
     #     print("-" * 50)
 
     #     # ==============================================================================
-    #     # Type 1: 基础正样本 (Robust Positive)
+    #     # Type 1: Robust positive samples (Robust Positive)
     #     # ==============================================================================
     #     for _ in range(count_robust):
-    #         # 这里的基是满秩生成的，所以 MaskDim 全是核心
+    #         # The basis is generated at full rank, so all MaskDim entries are core terms
     #         Q = self._generate_general_psd_matrix(self.mask_dim, rank=self.mask_dim)
     #         coeffs = self._Q_to_coeffs(Q)
 
     #         mask = np.ones(self.mask_dim, dtype=int)
-    #         minimal_mask = np.ones(self.mask_dim, dtype=int)  # 全是核心
+    #         minimal_mask = np.ones(self.mask_dim, dtype=int)  # all core terms
 
     #         dataset.append({
     #             "type": "robust_positive",
     #             "label": 1,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
 
     #     # ==============================================================================
-    #     # Type 2: 冗余正样本 (Redundant Positive)
+    #     # Type 2: Redundant positive samples (Redundant Positive)
     #     # ==============================================================================
     #     for _ in range(count_redundant):
-    #         # 1. 核心基
+    #         # 1. Core basis
     #         num_core = np.random.randint(self.n + 1, self.mask_dim // 2 + 2)
     #         core_indices = np.random.choice(self.mask_dim, num_core, replace=False)
 
-    #         # 2. 生成 P(x)
+    #         # 2. Generate P(x)
     #         Q_small = self._generate_general_psd_matrix(num_core, rank=num_core)
     #         Q_full = np.zeros((self.mask_dim, self.mask_dim))
     #         Q_full[np.ix_(core_indices, core_indices)] = Q_small
     #         coeffs = self._Q_to_coeffs(Q_full)
 
-    #         # 3. 构造 Minimal Mask (这就是 Agent 的终极目标)
+    #         # 3. Build the Minimal Mask (the Agent target)
     #         minimal_mask = np.zeros(self.mask_dim, dtype=int)
     #         minimal_mask[core_indices] = 1
 
-    #         # 4. 构造实际 Mask (核心 + 随机冗余)
+    #         # 4. Build the actual Mask (core + random redundancy)
     #         mask = np.zeros(self.mask_dim, dtype=int)
-    #         mask[core_indices] = 1  # 先把核心加进去
+    #         mask[core_indices] = 1  # Add the core terms first
 
     #         remaining_indices = [i for i in range(self.mask_dim) if i not in core_indices]
     #         if remaining_indices:
@@ -189,13 +189,13 @@ class SOSDataGenerator:
     #             "type": "redundant_positive",
     #             "label": 1,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增 (仅包含核心)
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added (core terms only)
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
 
     #     # ==============================================================================
-    #     # Type 3: 极简正样本 (Minimal Positive)
+    #     # Type 3: Minimal positive samples (Minimal Positive)
     #     # ==============================================================================
     #     for _ in range(count_minimal):
     #         num_core = np.random.randint(self.n + 1, self.mask_dim // 2 + 1)
@@ -206,7 +206,7 @@ class SOSDataGenerator:
     #         Q_full[np.ix_(core_indices, core_indices)] = Q_small
     #         coeffs = self._Q_to_coeffs(Q_full)
 
-    #         # Mask 本身就是 Minimal
+    #         # The Mask itself is Minimal
     #         mask = np.zeros(self.mask_dim, dtype=int)
     #         mask[core_indices] = 1
     #         minimal_mask = mask.copy()
@@ -215,13 +215,13 @@ class SOSDataGenerator:
     #             "type": "minimal_positive",
     #             "label": 1,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
 
     #     # ==============================================================================
-    #     # Type 4: 伪装负样本 (Camouflaged Negative)
+    #     # Type 4: Camouflaged negative samples (Camouflaged Negative)
     #     # ==============================================================================
     #     for _ in range(count_camo_neg):
     #         num_core = np.random.randint(self.n + 2, self.mask_dim // 2 + 3)
@@ -232,18 +232,18 @@ class SOSDataGenerator:
     #         Q_full[np.ix_(core_indices, core_indices)] = Q_small
     #         coeffs = self._Q_to_coeffs(Q_full)
 
-    #         # 虽然这个样本是负的(缺核心)，但我们依然记录生成它所用的“潜在核心”
-    #         # 这有助于分析 Agent 是否能识别出“缺失的核心”
+    #         # Although this sample is negative (missing core terms), still record the latent core used to generate it
+    #         # This helps analyze whether the Agent can identify the missing core terms
     #         minimal_mask = np.zeros(self.mask_dim, dtype=int)
     #         minimal_mask[core_indices] = 1
 
     #         mask = np.zeros(self.mask_dim, dtype=int)
-    #         # 核心破坏
+    #         # Core corruption
     #         num_keep_core = np.random.randint(1, num_core)
     #         keep_indices = np.random.choice(core_indices, num_keep_core, replace=False)
     #         mask[keep_indices] = 1
 
-    #         # 冗余伪装
+    #         # Redundant camouflage
     #         remaining_indices = [i for i in range(self.mask_dim) if i not in core_indices]
     #         if remaining_indices:
     #             max_redundant = len(remaining_indices)
@@ -256,7 +256,7 @@ class SOSDataGenerator:
     #             "type": "camouflaged_negative",
     #             "label": 0,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增 (潜在的完整核心)
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added (latent complete core)
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
@@ -265,9 +265,9 @@ class SOSDataGenerator:
     #     return dataset
 
     # def generate_dataset(self, total_samples=200000, ratio=(1, 1, 1, 3)):
-    #     """生成包含 minimal_mask (理论最小基) 的数据集"""
+    #     """Generate a dataset containing minimal_mask (the theoretical minimal basis)"""
 
-    #     # 计算各类型数量
+    #     # Compute the count for each type
     #     unit = total_samples // sum(ratio)
     #     count_robust = unit * ratio[0]
     #     count_redundant = unit * ratio[1]
@@ -286,61 +286,61 @@ class SOSDataGenerator:
     #     print("-" * 50)
 
     #     # ==============================================================================
-    #     # Type 1: 基础正样本 (Robust Positive)
+    #     # Type 1: Robust positive samples (Robust Positive)
     #     # ==============================================================================
     #     for _ in range(count_robust):
-    #         # 这里的基是满秩生成的，所以 MaskDim 全是核心
+    #         # The basis is generated at full rank, so all MaskDim entries are core terms
     #         Q = self._generate_general_psd_matrix(self.mask_dim, rank=self.mask_dim)
     #         coeffs = self._Q_to_coeffs(Q)
 
     #         mask = np.ones(self.mask_dim, dtype=int)
-    #         minimal_mask = np.ones(self.mask_dim, dtype=int)  # 全是核心
+    #         minimal_mask = np.ones(self.mask_dim, dtype=int)  # all core terms
 
     #         dataset.append({
     #             "type": "robust_positive",
     #             "label": 1,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
 
     #     # ==============================================================================
-    #     # Type 2: 冗余正样本 (Redundant Positive)
+    #     # Type 2: Redundant positive samples (Redundant Positive)
     #     # ==============================================================================
     #     for _ in range(count_redundant):
-    #         # 1. 核心基
-    #         # === [修改] 增加边界检查，兼容 5n2d 等低维情况 ===
+    #         # 1. Core basis
+    #         # === [Modified] Add boundary checks to support low-dimensional cases such as 5n2d ===
     #         orig_low = self.n + 1
     #         orig_high = self.mask_dim // 2 + 2
 
     #         if orig_low < orig_high:
-    #             # [原有逻辑] 保持 4n4d 等正常情况下的随机序列完全一致
+    #             # [Original logic] Keep the random sequence exactly the same as in normal cases such as 4n4d
     #             num_core = np.random.randint(orig_low, orig_high)
     #         else:
-    #             # [备用逻辑] 当 low >= high 时使用安全范围
+    #             # [Fallback logic] Use a safe range when low >= high
     #             safe_high = self.mask_dim + 1
     #             safe_low = min(self.n, self.mask_dim)
     #             if safe_low >= safe_high: safe_low = max(1, safe_high - 1)
     #             num_core = np.random.randint(safe_low, safe_high)
 
-    #         # 防止采样数超过总数
+    #         # Prevent the sample count from exceeding the total
     #         num_core = min(num_core, self.mask_dim)
     #         core_indices = np.random.choice(self.mask_dim, num_core, replace=False)
 
-    #         # 2. 生成 P(x)
+    #         # 2. Generate P(x)
     #         Q_small = self._generate_general_psd_matrix(num_core, rank=num_core)
     #         Q_full = np.zeros((self.mask_dim, self.mask_dim))
     #         Q_full[np.ix_(core_indices, core_indices)] = Q_small
     #         coeffs = self._Q_to_coeffs(Q_full)
 
-    #         # 3. 构造 Minimal Mask (这就是 Agent 的终极目标)
+    #         # 3. Build the Minimal Mask (the Agent target)
     #         minimal_mask = np.zeros(self.mask_dim, dtype=int)
     #         minimal_mask[core_indices] = 1
 
-    #         # 4. 构造实际 Mask (核心 + 随机冗余)
+    #         # 4. Build the actual Mask (core + random redundancy)
     #         mask = np.zeros(self.mask_dim, dtype=int)
-    #         mask[core_indices] = 1  # 先把核心加进去
+    #         mask[core_indices] = 1  # Add the core terms first
 
     #         remaining_indices = [i for i in range(self.mask_dim) if i not in core_indices]
     #         if remaining_indices:
@@ -354,24 +354,24 @@ class SOSDataGenerator:
     #             "type": "redundant_positive",
     #             "label": 1,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增 (仅包含核心)
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added (core terms only)
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
 
     #     # ==============================================================================
-    #     # Type 3: 极简正样本 (Minimal Positive)
+    #     # Type 3: Minimal positive samples (Minimal Positive)
     #     # ==============================================================================
     #     for _ in range(count_minimal):
-    #         # === [修改] 增加边界检查 ===
+    #         # === [Modified] Add boundary checks ===
     #         orig_low = self.n + 1
     #         orig_high = self.mask_dim // 2 + 1
 
     #         if orig_low < orig_high:
-    #             # [原有逻辑]
+    #             # [Original logic]
     #             num_core = np.random.randint(orig_low, orig_high)
     #         else:
-    #             # [备用逻辑]
+    #             # [Fallback logic]
     #             safe_high = self.mask_dim + 1
     #             safe_low = min(self.n, self.mask_dim)
     #             if safe_low >= safe_high: safe_low = max(1, safe_high - 1)
@@ -385,7 +385,7 @@ class SOSDataGenerator:
     #         Q_full[np.ix_(core_indices, core_indices)] = Q_small
     #         coeffs = self._Q_to_coeffs(Q_full)
 
-    #         # Mask 本身就是 Minimal
+    #         # The Mask itself is Minimal
     #         mask = np.zeros(self.mask_dim, dtype=int)
     #         mask[core_indices] = 1
     #         minimal_mask = mask.copy()
@@ -394,24 +394,24 @@ class SOSDataGenerator:
     #             "type": "minimal_positive",
     #             "label": 1,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
 
     #     # ==============================================================================
-    #     # Type 4: 伪装负样本 (Camouflaged Negative)
+    #     # Type 4: Camouflaged negative samples (Camouflaged Negative)
     #     # ==============================================================================
     #     for _ in range(count_camo_neg):
-    #         # === [修改] 增加边界检查 ===
+    #         # === [Modified] Add boundary checks ===
     #         orig_low = self.n + 2
     #         orig_high = self.mask_dim // 2 + 3
 
     #         if orig_low < orig_high:
-    #             # [原有逻辑]
+    #             # [Original logic]
     #             num_core = np.random.randint(orig_low, orig_high)
     #         else:
-    #             # [备用逻辑]
+    #             # [Fallback logic]
     #             safe_high = self.mask_dim + 1
     #             safe_low = min(self.n + 1, self.mask_dim)
     #             if safe_low >= safe_high: safe_low = max(1, safe_high - 1)
@@ -425,18 +425,18 @@ class SOSDataGenerator:
     #         Q_full[np.ix_(core_indices, core_indices)] = Q_small
     #         coeffs = self._Q_to_coeffs(Q_full)
 
-    #         # 虽然这个样本是负的(缺核心)，但我们依然记录生成它所用的“潜在核心”
-    #         # 这有助于分析 Agent 是否能识别出“缺失的核心”
+    #         # Although this sample is negative (missing core terms), still record the latent core used to generate it
+    #         # This helps analyze whether the Agent can identify the missing core terms
     #         minimal_mask = np.zeros(self.mask_dim, dtype=int)
     #         minimal_mask[core_indices] = 1
 
     #         mask = np.zeros(self.mask_dim, dtype=int)
-    #         # 核心破坏
+    #         # Core corruption
     #         num_keep_core = np.random.randint(1, num_core)
     #         keep_indices = np.random.choice(core_indices, num_keep_core, replace=False)
     #         mask[keep_indices] = 1
 
-    #         # 冗余伪装
+    #         # Redundant camouflage
     #         remaining_indices = [i for i in range(self.mask_dim) if i not in core_indices]
     #         if remaining_indices:
     #             max_redundant = len(remaining_indices)
@@ -449,7 +449,7 @@ class SOSDataGenerator:
     #             "type": "camouflaged_negative",
     #             "label": 0,
     #             "mask": mask.tolist(),
-    #             "minimal_mask": minimal_mask.tolist(),  # <--- 新增 (潜在的完整核心)
+    #             "minimal_mask": minimal_mask.tolist(),  # <--- added (latent complete core)
     #             "coeffs": coeffs.tolist(),
     #             "poly_str": self._poly_to_string(coeffs)
     #         })
@@ -458,9 +458,9 @@ class SOSDataGenerator:
     #     return dataset
 
     def generate_dataset(self, total_samples=200000, ratio=(1, 1, 1, 3)):
-        """生成包含 minimal_mask (理论最小基) 的数据集"""
+        """Generate a dataset containing minimal_mask (the theoretical minimal basis)"""
 
-        # 计算各类型数量
+        # Compute the count for each type
         unit = total_samples // sum(ratio)
         count_robust = unit * ratio[0]
         count_redundant = unit * ratio[1]
@@ -479,15 +479,15 @@ class SOSDataGenerator:
         print("-" * 50)
 
         # ==============================================================================
-        # Type 1: 基础正样本 (Robust Positive) - 逻辑保持不变
+        # Type 1: Robust positive samples (Robust Positive) - logic unchanged
         # ==============================================================================
         for _ in range(count_robust):
-            # 这里的基是满秩生成的，所以 MaskDim 全是核心
+            # The basis is generated at full rank, so all MaskDim entries are core terms
             Q = self._generate_general_psd_matrix(self.mask_dim, rank=self.mask_dim)
             coeffs = self._Q_to_coeffs(Q)
 
             mask = np.ones(self.mask_dim, dtype=int)
-            minimal_mask = np.ones(self.mask_dim, dtype=int)  # 全是核心
+            minimal_mask = np.ones(self.mask_dim, dtype=int)  # all core terms
 
             dataset.append({
                 "type": "robust_positive",
@@ -499,45 +499,45 @@ class SOSDataGenerator:
             })
 
         # ==============================================================================
-        # Type 2: 冗余正样本 (Redundant Positive) - 修改
+        # Type 2: Redundant positive samples (Redundant Positive) - Modified
         # ==============================================================================
         for _ in range(count_redundant):
-            # 1. 核心基
-            # === [修改] 增加边界检查，兼容低维情况并增加样本多样性 ===
+            # 1. Core basis
+            # === [Modified] Add boundary checks to support low-dimensional cases and increase sample diversity ===
             orig_low = self.n + 1
             orig_high = self.mask_dim // 2 + 2
 
             if orig_low < orig_high:
-                # [原有逻辑] 保持 4n4d 等正常情况下的随机序列完全一致
+                # [Original logic] Keep the random sequence exactly the same as in normal cases such as 4n4d
                 num_core = np.random.randint(orig_low, orig_high)
             else:
-                # [备用逻辑] 当 low >= high 时使用安全范围
-                # 关键修改：下界设为 mask_dim的一半，保证至少有一半的冗余空间，制造更大的 Gap
+                # [Fallback logic] Use a safe range when low >= high
+                # Key change: set the lower bound to half of mask_dim to ensure at least half redundant space and create a larger Gap
                 safe_high = self.mask_dim + 1
                 safe_low = max(1, self.mask_dim // 2)
                 
-                # 双重保险：防止 safe_low 还是太大
+                # Extra guard: prevent safe_low from still being too large
                 if safe_low >= safe_high: safe_low = max(1, safe_high - 1)
                 
                 num_core = np.random.randint(safe_low, safe_high)
 
-            # 防止采样数超过总数
+            # Prevent the sample count from exceeding the total
             num_core = min(num_core, self.mask_dim)
             core_indices = np.random.choice(self.mask_dim, num_core, replace=False)
 
-            # 2. 生成 P(x)
+            # 2. Generate P(x)
             Q_small = self._generate_general_psd_matrix(num_core, rank=num_core)
             Q_full = np.zeros((self.mask_dim, self.mask_dim))
             Q_full[np.ix_(core_indices, core_indices)] = Q_small
             coeffs = self._Q_to_coeffs(Q_full)
 
-            # 3. 构造 Minimal Mask (这就是 Agent 的终极目标)
+            # 3. Build the Minimal Mask (the Agent target)
             minimal_mask = np.zeros(self.mask_dim, dtype=int)
             minimal_mask[core_indices] = 1
 
-            # 4. 构造实际 Mask (核心 + 随机冗余)
+            # 4. Build the actual Mask (core + random redundancy)
             mask = np.zeros(self.mask_dim, dtype=int)
-            mask[core_indices] = 1  # 先把核心加进去
+            mask[core_indices] = 1  # Add the core terms first
 
             remaining_indices = [i for i in range(self.mask_dim) if i not in core_indices]
             if remaining_indices:
@@ -557,20 +557,20 @@ class SOSDataGenerator:
             })
 
         # ==============================================================================
-        # Type 3: 极简正样本 (Minimal Positive) - 修改
+        # Type 3: Minimal positive samples (Minimal Positive) - Modified
         # ==============================================================================
         for _ in range(count_minimal):
-            # === [修改] 增加边界检查 ===
+            # === [Modified] Add boundary checks ===
             orig_low = self.n + 1
             orig_high = self.mask_dim // 2 + 1
 
             if orig_low < orig_high:
-                # [原有逻辑]
+                # [Original logic]
                 num_core = np.random.randint(orig_low, orig_high)
             else:
-                # [备用逻辑] 
+                # [Fallback logic] 
                 safe_high = self.mask_dim + 1
-                safe_low = max(1, self.mask_dim // 2) # 放宽下界
+                safe_low = max(1, self.mask_dim // 2) # relax the lower bound
                 
                 if safe_low >= safe_high: safe_low = max(1, safe_high - 1)
                 num_core = np.random.randint(safe_low, safe_high)
@@ -583,7 +583,7 @@ class SOSDataGenerator:
             Q_full[np.ix_(core_indices, core_indices)] = Q_small
             coeffs = self._Q_to_coeffs(Q_full)
 
-            # Mask 本身就是 Minimal
+            # The Mask itself is Minimal
             mask = np.zeros(self.mask_dim, dtype=int)
             mask[core_indices] = 1
             minimal_mask = mask.copy()
@@ -598,20 +598,20 @@ class SOSDataGenerator:
             })
 
         # ==============================================================================
-        # Type 4: 伪装负样本 (Camouflaged Negative) - 修改
+        # Type 4: Camouflaged negative samples (Camouflaged Negative) - Modified
         # ==============================================================================
         for _ in range(count_camo_neg):
-            # === [修改] 增加边界检查 ===
+            # === [Modified] Add boundary checks ===
             orig_low = self.n + 2
             orig_high = self.mask_dim // 2 + 3
 
             if orig_low < orig_high:
-                # [原有逻辑]
+                # [Original logic]
                 num_core = np.random.randint(orig_low, orig_high)
             else:
-                # [备用逻辑]
+                # [Fallback logic]
                 safe_high = self.mask_dim + 1
-                # 负样本稍微多留一点核心，增加迷惑性，但也不要全满
+                # Keep slightly more core terms in negative samples to increase ambiguity, but do not make them full
                 safe_low = max(2, self.mask_dim // 2) 
                 
                 if safe_low >= safe_high: safe_low = max(1, safe_high - 1)
@@ -625,17 +625,17 @@ class SOSDataGenerator:
             Q_full[np.ix_(core_indices, core_indices)] = Q_small
             coeffs = self._Q_to_coeffs(Q_full)
 
-            # 虽然这个样本是负的(缺核心)，但我们依然记录生成它所用的“潜在核心”
+            # Although this sample is negative (missing core terms), still record the latent core used to generate it
             minimal_mask = np.zeros(self.mask_dim, dtype=int)
             minimal_mask[core_indices] = 1
 
             mask = np.zeros(self.mask_dim, dtype=int)
-            # 核心破坏
+            # Core corruption
             num_keep_core = np.random.randint(1, num_core)
             keep_indices = np.random.choice(core_indices, num_keep_core, replace=False)
             mask[keep_indices] = 1
 
-            # 冗余伪装
+            # Redundant camouflage
             remaining_indices = [i for i in range(self.mask_dim) if i not in core_indices]
             if remaining_indices:
                 max_redundant = len(remaining_indices)
@@ -667,7 +667,7 @@ class SOSDataGenerator:
             },
             "data": dataset
         }
-        # 确保目录存在
+        # Ensure directories exist
         os.makedirs(os.path.dirname(filename), exist_ok=True)
 
         with open(filename, 'w', encoding='utf-8') as f:

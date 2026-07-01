@@ -57,7 +57,7 @@ class DoubleDQNAgentPER:
             masked_q_values = q_values + full_mask_penalty
             return masked_q_values.argmax().item()
 
-    # 存储、学习、更新代码保持不变...
+    # Store, learn, and update code unchanged...
     def store_transition(self, state, action, reward, next_state, done):
         max_p = np.max(self.memory.tree.tree[-self.memory.tree.capacity:])
         if max_p == 0: max_p = 1.0

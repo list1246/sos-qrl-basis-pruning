@@ -23,7 +23,7 @@ class SOSPruningEnvGT:
         self.min_feasible_size = 0
         self.steps = 0
 
-        # 记录初始 Gap 和 Budget
+        # Record the initial Gap and Budget
         self.initial_gap = 0
         self.process_budget = 5.0
         self.stop_budget = 5.0
@@ -45,27 +45,27 @@ class SOSPruningEnvGT:
         print(f"[Env] Loaded {len(valid_data)} samples with Ground Truth.")
         return valid_data
 
-    # === 修改点：支持指定 sample_idx 进行重置 (用于遍历测试) ===
+    # === Change:Support resetting with a specified sample_idx (for iterating through tests) ===
     def reset(self, sample_idx=None):
         if sample_idx is not None and 0 <= sample_idx < len(self.dataset):
             sample = self.dataset[sample_idx]
         else:
             sample = random.choice(self.dataset)
 
-        # 状态初始化
+        # Initialize state
         raw_coeffs = np.array(sample['coeffs'], dtype=np.float32)
         coeffs_t = torch.from_numpy(raw_coeffs)
         self.current_coeffs = torch.sign(coeffs_t) * torch.log1p(torch.abs(coeffs_t))
         self.current_mask = torch.ones(self.mask_dim, dtype=torch.long)
 
-        # GT 初始化
+        # Initialize GT
         self.gt_mask_tensor = torch.tensor(sample['minimal_mask'], dtype=torch.long, device=self.device)
         self.current_gt_size = sum(sample['minimal_mask'])
 
         self.steps = 0
         self.min_feasible_size = self.mask_dim
 
-        # 计算 Initial Gap
+        # Compute Initial Gap
         self.initial_gap = self.mask_dim - self.current_gt_size
         if self.initial_gap <= 0: self.initial_gap = 1.0
 
@@ -75,7 +75,7 @@ class SOSPruningEnvGT:
         return self.current_coeffs.to(self.device), self.current_mask.to(self.device)
 
     def _calculate_potential(self, gap):
-        # 势能计算: Budget * (进度)^2
+        # Potential calculation: Budget * (progress)^2
         progress_ratio = 1.0 - (gap / self.initial_gap)
         progress_ratio = max(0.0, min(1.0, progress_ratio))
         return self.process_budget * (progress_ratio ** 2)
@@ -85,12 +85,12 @@ class SOSPruningEnvGT:
         is_covered = torch.all((current_mask_tensor >= self.gt_mask_tensor))
         return is_covered.item()
 
-    # === 修改点：增加 is_eval 参数 ===
+    # === Change:Add the is_eval parameter ===
     def step(self, action_idx, is_eval=False):
         self.steps += 1
         time_limit_reached = (self.steps >= self.max_steps_limit)
 
-        # --- A: STOP 动作 ---
+        # --- A: STOP action ---
         if action_idx == self.mask_dim:
             is_feasible = self._check_feasibility_by_gt(self.current_mask)
             active_count = self.current_mask.sum().item()
@@ -104,7 +104,7 @@ class SOSPruningEnvGT:
                 if active_count < self.min_feasible_size:
                     self.min_feasible_size = active_count
 
-                # 归一化结果奖励
+                # Normalize the terminal reward
                 if self.initial_gap > 0:
                     gap_clamped = max(0, current_gap)
                     completion_ratio = (self.initial_gap - gap_clamped) / self.initial_gap
@@ -115,25 +115,25 @@ class SOSPruningEnvGT:
 
             return self._get_state(), reward, done, {}
 
-        # --- B: 剪枝动作 ---
+        # --- B: Pruning action ---
         is_critical = (self.gt_mask_tensor[action_idx] == 1)
 
         if is_critical:
-            # === 剪错关键项 ===
+            # === Pruned a critical term ===
 
             if is_eval:
-                # [Evaluation Mode] 严格模式：剪错立即停止，不算完成
-                reward = 0.0  # 测试时 reward 不重要，重要的是 Gap 停在了哪里
+                # [Evaluation Mode] Strict mode: stop immediately after pruning a critical term; do not count it as completed
+                reward = 0.0  # During testing, reward is not important; the important value is where the Gap stops
                 done = True
-                # Gap 保持在剪之前的状态（因为没剪下去），这代表了 Agent 的真实能力边界
+                # Gap remains at the pre-pruning state (because the term was not removed), representing the true capability boundary of the Agent
             else:
-                # [Training Mode] 软惩罚：给负分，继续探索
+                # [Training Mode] Soft penalty: give a negative score and continue exploration
                 reward = -1
                 done = False
                 if time_limit_reached:
                     done = True
         else:
-            # === 剪对冗余项 ===
+            # === Correctly pruned a redundant term ===
             prev_active_count = self.current_mask.sum().item()
             prev_gap = prev_active_count - self.current_gt_size
 
@@ -145,7 +145,7 @@ class SOSPruningEnvGT:
             if curr_active_count < self.min_feasible_size:
                 self.min_feasible_size = curr_active_count
 
-            # 势能差奖励
+            # Potential-difference reward
             pot_old = self._calculate_potential(prev_gap)
             pot_new = self._calculate_potential(curr_gap)
             reward = pot_new - pot_old

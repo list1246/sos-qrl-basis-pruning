@@ -14,7 +14,7 @@ def create_dir():
 
 def set_seed(seed=2026):
     """
-    固定所有随机种子，保证实验可复现。
+    Fix all random seeds to make experiments reproducible.
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -22,9 +22,9 @@ def set_seed(seed=2026):
 
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # 如果使用多GPU
+    torch.cuda.manual_seed_all(seed)  # if using multiple GPUs
 
-    # 保证 CuDNN 也是确定性的
+    # Ensure CuDNN is deterministic as well
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -33,26 +33,26 @@ def set_seed(seed=2026):
 
 # def plot_training_results(rewards, training_gaps, eval_gaps, eval_epochs, window_size=200,
 #                           save_path="training_plot.png"):
-#     # === 修改点 1：调整画布大小 ===
-#     # 宽 16 (保证横坐标够长), 高 18 (保证竖向排列 3 张图不扁)
+#     # === Change 1:Adjust canvas size ===
+#     # Width 16 (ensure the x-axis is long enough), height 18 (ensure three vertically stacked plots are not flattened)
 #     plt.figure(figsize=(16, 18))
 #
-#     # 设置全局字体大小，防止大图字体太小
+#     # Set the global font size to prevent fonts from being too small in large figures
 #     plt.rcParams.update({'font.size': 12})
 #
 #     # ==========================================
-#     # 子图 1: Training Gap (平滑)
+#     # Subplot 1: Training Gap (smoothed)
 #     # ==========================================
-#     # === 修改点 2：布局改为 3行1列，第1张 ===
+#     # === Change 2:Change layout to 3 rows by 1 column, first plot ===
 #     plt.subplot(3, 1, 1)
 #     if len(training_gaps) > 0:
-#         # 可以保留原始数据的半透明背景，看具体需求
+#         # A translucent background of raw data can be kept depending on requirements
 #         # plt.plot(training_gaps, alpha=0.15, color='gray', label='Raw Gap')
 #
 #         if len(training_gaps) >= window_size:
 #             weights = np.ones(window_size) / window_size
 #             gap_ma = np.convolve(training_gaps, weights, mode='valid')
-#             # 调整 x 轴，使其对齐
+#             # Adjust the x-axis to align it
 #             ma_x = range(window_size - 1, len(training_gaps))
 #             plt.plot(ma_x, gap_ma, color='red', linewidth=2, label=f'Train Gap (MA {window_size})')
 #
@@ -63,9 +63,9 @@ def set_seed(seed=2026):
 #     plt.legend(loc='upper right')
 #
 #     # ==========================================
-#     # 子图 2: Reward (平滑)
+#     # Subplot 2: Reward (smoothed)
 #     # ==========================================
-#     # === 修改点 2：布局改为 3行1列，第2张 ===
+#     # === Change 2:Change layout to 3 rows by 1 column, second plot ===
 #     plt.subplot(3, 1, 2)
 #     if len(rewards) > 0:
 #         # plt.plot(rewards, alpha=0.15, color='lightblue', label='Raw Reward')
@@ -83,35 +83,35 @@ def set_seed(seed=2026):
 #     plt.legend(loc='lower right')
 #
 #     # ==========================================
-#     # 子图 3: Evaluation Gap (测试集平均 Gap)
+#     # Subplot 3: Evaluation Gap (average Gap on the test set)
 #     # ==========================================
-#     # === 修改点 2：布局改为 3行1列，第3张 ===
+#     # === Change 2:Change layout to 3 rows by 1 column, third plot ===
 #     plt.subplot(3, 1, 3)
 #     if len(eval_gaps) > 0:
 #         plt.plot(eval_epochs, eval_gaps, marker='o', color='green', linewidth=2, markersize=6, label='Eval Avg Gap')
 #
-#         # === 修改点 3：优化标注显示，防止拥挤 ===
-#         # 逻辑：如果点太多，就每隔 N 个点标一个数字，但必须标出最小值和最后一个值
+#         # === Change 3:Optimize annotation display to avoid crowding ===
+#         # Logic: if there are too many points, label every Nth point, but always label the minimum and final values
 #         total_points = len(eval_gaps)
 #
-#         # 动态计算间隔：保证图上最多只有约 20 个标注，防止重叠
+#         # Dynamically compute the interval so the plot has at most about 20 annotations and avoids overlap
 #         step = max(1, total_points // 20)
 #
 #         min_val = min(eval_gaps)
 #         min_idx = eval_gaps.index(min_val)
 #
 #         for i in range(total_points):
-#             # 只标注：起步点、每隔 step 的点、最低点、最后一点
+#             # Only annotate the starting point, every step-th point, the minimum point, and the last point
 #             if i == 0 or i == total_points - 1 or i == min_idx or i % step == 0:
 #                 txt = f"{eval_gaps[i]:.2f}"
 #
-#                 # 特殊处理最低点，用粗体显示
+#                 # Special-case the minimum point and show it in bold
 #                 weight = 'bold' if i == min_idx else 'normal'
 #                 color = 'red' if i == min_idx else 'black'
 #
-#                 # 稍微错开一下位置
+#                 # Slightly offset the position
 #                 xy_text = (0, -15) if i % (step * 2) == 0 else (0, 10)
-#                 if i == min_idx: xy_text = (0, -20)  # 最低点往下放一点
+#                 if i == min_idx: xy_text = (0, -20)  # Place the minimum point slightly lower
 #
 #                 plt.annotate(txt,
 #                              (eval_epochs[i], eval_gaps[i]),
@@ -129,7 +129,7 @@ def set_seed(seed=2026):
 #     plt.grid(True, linestyle='--', alpha=0.5)
 #     plt.legend()
 #
-#     # 自动调整布局，防止标题和坐标轴重叠
+#     # Automatically adjust the layout to prevent titles and axes from overlapping
 #     plt.tight_layout(pad=3.0)
 #
 #     plt.savefig(save_path)
@@ -141,7 +141,7 @@ def plot_training_results(rewards, training_gaps, eval_train_gaps, eval_test_gap
     plt.figure(figsize=(16, 18))
     plt.rcParams.update({'font.size': 12})
 
-    # 子图 1: Training Gap
+    # Subplot 1: Training Gap
     plt.subplot(3, 1, 1)
     if len(training_gaps) > 0:
         if len(training_gaps) >= window_size:
@@ -155,7 +155,7 @@ def plot_training_results(rewards, training_gaps, eval_train_gaps, eval_test_gap
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.legend(loc='upper right')
 
-    # 子图 2: Reward
+    # Subplot 2: Reward
     plt.subplot(3, 1, 2)
     if len(rewards) > 0:
         if len(rewards) >= window_size:
@@ -169,16 +169,16 @@ def plot_training_results(rewards, training_gaps, eval_train_gaps, eval_test_gap
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.legend(loc='lower right')
 
-    # === 修改点：子图 3 同时绘制 Train 和 Test 的评估曲线 ===
+    # === Change:Subplot 3 plots both Train and Test evaluation curves ===
     plt.subplot(3, 1, 3)
 
-    # 辅助函数：绘制带稀疏标注的曲线
+    # Helper function: plot curves with sparse annotations
     def plot_with_annotations(epochs, gaps, color, label, offset_base):
         if len(gaps) == 0: return
         plt.plot(epochs, gaps, marker='o', color=color, linewidth=2, markersize=6, label=label)
 
         total_points = len(gaps)
-        step = max(1, total_points // 15)  # 稀疏标注
+        step = max(1, total_points // 15)  # sparse annotations
         min_val = min(gaps)
         min_idx = gaps.index(min_val)
 
@@ -187,16 +187,16 @@ def plot_training_results(rewards, training_gaps, eval_train_gaps, eval_test_gap
                 txt = f"{gaps[i]:.2f}"
                 is_min = (i == min_idx)
                 weight = 'bold' if is_min else 'normal'
-                # 错开 Train 和 Test 的标注位置，防止重叠
+                # Offset Train and Test annotation positions to prevent overlap
                 y_offset = offset_base if not is_min else (offset_base - 10 if offset_base < 0 else offset_base + 10)
                 xy_text = (0, y_offset)
 
                 plt.annotate(txt, (epochs[i], gaps[i]), textcoords="offset points", xytext=xy_text,
                              ha='center', fontsize=9, color=color, fontweight=weight)
 
-    # 绘制 Train Eval (绿色，标注在下方)
+    # Plot Train Eval (green, annotations below)
     plot_with_annotations(eval_epochs, eval_train_gaps, 'green', 'Eval Train Gap', -15)
-    # 绘制 Test Eval (橙色，标注在上方)
+    # Plot Test Eval (orange, annotations above)
     plot_with_annotations(eval_epochs, eval_test_gaps, 'orange', 'Eval Test Gap', 10)
 
     plt.title("Evaluation Gap (Train Subset vs Test Full)", fontsize=14, fontweight='bold')
@@ -213,22 +213,22 @@ def plot_training_results(rewards, training_gaps, eval_train_gaps, eval_test_gap
 
 def evaluate_agent(agent, env):
     """
-    遍历环境中的整个 Dataset，使用 greedy 策略进行测试。
-    规则：
-    1. Epsilon = 0 (无随机)
-    2. Step is_eval=True (剪错关键项直接停止)
-    返回：平均 Gap
+    Iterate through the entire Dataset in the environment and test with a greedy policy.
+    Rules:
+    1. Epsilon = 0 (no randomness)
+    2. Step is_eval=True (stop immediately when a critical term is pruned)
+    Return: average Gap
     """
     print(">>> Starting Evaluation on Full Dataset...")
 
-    # 保存原始 epsilon，测试完恢复
+    # Save the original epsilon and restore it after testing
     original_epsilon = agent.epsilon
     agent.epsilon = 0.0
 
     total_gap = 0
     dataset_len = len(env.dataset)
 
-    # 遍历每一条数据
+    # Iterate through each data record
     for i in range(dataset_len):
         state = env.reset(sample_idx=i)
         done = False
@@ -237,19 +237,19 @@ def evaluate_agent(agent, env):
             coeffs, mask = state
             action = agent.select_action(coeffs, mask)
 
-            # 使用 eval 模式的 step
+            # Use step in eval mode
             next_state, _, done, _ = env.step(action, is_eval=True)
             state = next_state
 
-        # 记录本局的 Gap (min_feasible_size - gt_size)
-        # 注意：在 is_eval=True 模式下，如果剪错会直接 Done，mask 保持在剪错前的状态（可行状态）
-        # 所以 min_feasible_size 就是 Agent 能够达到的极限
+        # Record the Gap for this episode (min_feasible_size - gt_size)
+        # Note: in is_eval=True mode, pruning a critical term directly ends the episode, and mask remains in the pre-error feasible state
+        # Therefore min_feasible_size is the limit the Agent can reach
         gap = env.min_feasible_size - env.current_gt_size
         total_gap += gap
 
     avg_gap = total_gap / dataset_len
     print(f">>> Evaluation Complete. Avg Gap: {avg_gap:.4f}")
 
-    # 恢复 epsilon
+    # Restore epsilon
     agent.epsilon = original_epsilon
     return avg_gap

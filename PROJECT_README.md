@@ -1,24 +1,24 @@
-﻿# SOS 基底剪枝与 QRL 结果整理项目
+﻿# SOS Basis Pruning and QRL Result Organization Project
 
-本文档根据当前目录 `Thesis` 的实际文件重新整理。项目主要用于训练强化学习模型剪枝 SOS Gram 矩阵基底，并对真实多项式样例生成、验证和归档对应的 `Q_RL` 结果。
+This document reorganizes the project based on the actual files in the current `Thesis` directory. The project trains a reinforcement-learning model to prune SOS Gram matrix bases and generates, verifies, and archives the corresponding `Q_RL` results for real polynomial examples.
 
-## 项目目标
+## Project Goals
 
-对偶次多项式 `f(x)`，SOS 表示可写为：
+For an even-degree polynomial `f(x)`, the SOS representation can be written as:
 
 ```text
 f(x) = z(x)^T Q z(x),  Q >= 0
 ```
 
-其中 `z(x)` 是完整单项式基底，`Q` 是半正定 Gram 矩阵。本项目使用 Double DQN + Prioritized Experience Replay 训练剪枝策略，在保持 SDP 可行性的前提下尽量减少保留基底，得到：
+Here `z(x)` is the full monomial basis and `Q` is a positive semidefinite Gram matrix. This project uses Double DQN + Prioritized Experience Replay to train a pruning policy that minimizes the retained basis while preserving SDP feasibility, yielding:
 
 ```text
 f(x) = z_RL(x)^T Q_RL z_RL(x)
 ```
 
-当前项目还包含 20 个论文附录样例 `C1` 至 `C20` 的整理结果，每个样例目录中保存了对应的多项式、基准测试行和 `Q_RL` 文件。
+The project also contains organized results for 20 appendix examples, `C1` through `C20`; each sample directory stores the corresponding polynomial, benchmark row, and `Q_RL` files.
 
-## 当前目录结构
+## Current Directory Structure
 
 ```text
 Thesis/
@@ -46,34 +46,34 @@ Thesis/
     4n4d/, 4n6d/, 5n4d/, 6n4d/, 7n4d/, 8n2d/
 ```
 
-## 核心代码
+## Core Code
 
-| 文件 | 作用 |
+| File | Purpose |
 |---|---|
-| `src/generator.py` | 构造 SOS 单项式基底、完整多项式系数空间和 `Q -> P` 系数映射，并生成训练/测试数据。 |
-| `src/env.py` | `SOSPruningEnvGT` 强化学习环境，状态为系数向量和当前 mask，动作为删除一个基底项或 STOP。 |
-| `src/model.py` | `TwoStreamQNet`，分别处理多项式系数流和 mask 流，输出每个剪枝动作及 STOP 的 Q 值。 |
-| `src/agent.py` | `DoubleDQNAgentPER`，包含 Double DQN、epsilon-greedy、目标网络和 PER 经验回放。 |
-| `src/buffer.py` | `SumTree` 与 `PrioritizedReplayBuffer`。 |
-| `src/util.py` | 随机种子、目录创建、训练曲线绘制和 agent 评估工具。 |
-| `solve_sos_qrl.py` | 读取多项式并求解缩减基底下的 `Q_RL`，输出 CSV、NPZ、JSON。 |
-| `all/bench_sdp.py` | 对 `all/result_real.csv` 中样例运行 RL、Newton Polytope、TSSOS、随机剪枝和 SDP 计时。 |
+| `src/generator.py` | Builds the SOS monomial basis, the full polynomial coefficient space, and the `Q -> P` coefficient map, then generates training/test data. |
+| `src/env.py` | `SOSPruningEnvGT` reinforcement-learning environment; the state is the coefficient vector and current mask, and actions remove a basis term or STOP. |
+| `src/model.py` | `TwoStreamQNet`, which processes the polynomial coefficient stream and mask stream separately and outputs Q-values for each pruning action and STOP. |
+| `src/agent.py` | `DoubleDQNAgentPER`, including Double DQN, epsilon-greedy exploration, target network, and PER replay. |
+| `src/buffer.py` | `SumTree` and `PrioritizedReplayBuffer`. |
+| `src/util.py` | Utilities for random seeds, directory creation, training-curve plotting, and agent evaluation. |
+| `solve_sos_qrl.py` | Reads polynomials and solves `Q_RL` under the reduced basis, writing CSV, NPZ, and JSON outputs. |
+| `all/bench_sdp.py` | Runs RL, Newton Polytope, TSSOS, random pruning, and SDP timing for examples in `all/result_real.csv`. |
 
-## 实验目录
+## Experiment Directories
 
-每个 `{n}n{d}d` 目录对应变量数 `n` 和多项式总次数 `d`，例如 `3n6d` 表示 3 个变量、6 次多项式。常见文件如下：
+Each `{n}n{d}d` directory corresponds to variable count `n` and total polynomial degree `d`; for example, `3n6d` means 3 variables and degree 6. Common files are:
 
-| 文件/目录 | 作用 |
+| File/Directory | Purpose |
 |---|---|
-| `generate.py` | 生成 `data/train.json` 和 `data/test.json`。 |
-| `train.py` | 训练当前配置下的 RL 剪枝模型。 |
-| `eval.py` | Newton Polytope 基线评估。 |
-| `env_custom.py` | 部分目录中的自定义环境参数。 |
-| `model/` | 训练得到的模型权重，常用文件名为 `train.pth`。 |
-| `picture/` | 训练曲线图片。 |
-| `result/` | 评估输出目录。 |
+| `generate.py` | Generates `data/train.json` and `data/test.json`. |
+| `train.py` | Trains the RL pruning model for the current configuration. |
+| `eval.py` | Newton Polytope baseline evaluation. |
+| `env_custom.py` | Custom environment parameters in some directories. |
+| `model/` | Trained model weights, commonly named `train.pth`. |
+| `picture/` | Training-curve images. |
+| `result/` | Evaluation output directory. |
 
-当前存在的实验配置：
+Existing experiment configurations:
 
 ```text
 2n6d, 2n8d, 2n10d,
@@ -82,117 +82,117 @@ Thesis/
 5n4d, 6n4d, 7n4d, 8n2d
 ```
 
-## 运行环境
+## Runtime Environment
 
-建议使用已有 Python/Conda 环境。项目依赖包括：
+Use an existing Python/Conda environment. Project dependencies include:
 
-| 包 | 用途 |
+| Package | Use |
 |---|---|
-| `torch` | 强化学习模型和训练。 |
-| `numpy` | 数值计算。 |
-| `sympy` | 多项式解析和展开。 |
-| `cvxpy` | SDP 建模与求解。 |
-| `scipy` | Newton Polytope 中的线性规划。 |
-| `matplotlib` | 训练曲线绘图。 |
-| `openpyxl` | 读取 Excel 数据集。 |
+| `torch` | Reinforcement-learning model and training. |
+| `numpy` | Numerical computation. |
+| `sympy` | Polynomial parsing and expansion. |
+| `cvxpy` | SDP modeling and solving. |
+| `scipy` | Linear programming for Newton Polytope. |
+| `matplotlib` | Training-curve plotting. |
+| `openpyxl` | Reading Excel datasets. |
 
-`bench_sdp.py` 默认使用 MOSEK 计时；`solve_sos_qrl.py` 默认使用 CLARABEL，并在需要时可切换到 SCS。
+`bench_sdp.py` uses MOSEK for timing by default; `solve_sos_qrl.py` uses CLARABEL by default and can switch to SCS when needed.
 
-## 常用命令
+## Common Commands
 
-在项目根目录运行：
+Run from the project root:
 
 ```powershell
 cd Thesis
 ```
 
-生成某个配置的数据：
+Generate data for a configuration:
 
 ```powershell
 cd 3n4d
 python generate.py
 ```
 
-训练某个配置的模型：
+Train a model for a configuration:
 
 ```powershell
 cd 3n4d
 python train.py
 ```
 
-运行 Newton Polytope 基线：
+Run the Newton Polytope baseline:
 
 ```powershell
 cd 3n4d
 python eval.py
 ```
 
-对真实样例求解 `Q_RL`：
+Solve `Q_RL` for real examples:
 
 ```powershell
 cd Thesis
 python solve_sos_qrl.py --csv all\result_real.csv --all --outdir all\qrl_results
 ```
 
-只求解单个样例：
+Solve a single example:
 
 ```powershell
 python solve_sos_qrl.py --csv all\result_real.csv --sample-id 33 --outdir all\qrl_results
 ```
 
-用完整基底求解：
+Solve with the full basis:
 
 ```powershell
 python solve_sos_qrl.py --expr "x1**2 + x2**2" --nvars 2 --degree 2 --full-basis
 ```
 
-运行综合基准测试：
+Run the comprehensive benchmark:
 
 ```powershell
 cd all
 python bench_sdp.py
 ```
 
-## `all/` 结果说明
+## `all/` Result Description
 
-| 文件/目录 | 内容 |
+| File/Directory | Content |
 |---|---|
-| `all/result_real.csv` | 真实多项式样例及完整基底、RL、NP、TSSOS 剪枝后基底数量。 |
-| `all/result_real.md` | `result_real.csv` 的 Markdown 版本。 |
-| `all/res.csv` | 综合基准测试结果，包含全基、RL、NP、TSSOS、随机剪枝的 SDP 时间和加速比。 |
-| `all/qrl_results/` | 每个样例的 `Q_RL` 结果，包含 `*_Q_RL.csv`、`.npz`、`.json`。 |
-| `all/qrl_results/summary.csv` | `Q_RL` 求解摘要：样本号、配置、基底大小、最小特征值、秩、残差和状态。 |
-| `all/qrl_results_scs_check/` | 额外 SCS 检查结果；当前包含 sample 30。 |
-| `all/basis_red_boxes.csv` | 基底缩减相关的辅助数据。 |
+| `all/result_real.csv` | Real polynomial examples and basis sizes after full-basis, RL, NP, and TSSOS pruning. |
+| `all/result_real.md` | Markdown version of `result_real.csv`. |
+| `all/res.csv` | Comprehensive benchmark results, including SDP times and speedups for full-basis, RL, NP, TSSOS, and random pruning. |
+| `all/qrl_results/` | `Q_RL` results for each example, including `*_Q_RL.csv`, `.npz`, and `.json`. |
+| `all/qrl_results/summary.csv` | `Q_RL` solve summary: sample ID, configuration, basis size, minimum eigenvalue, rank, residual, and status. |
+| `all/qrl_results_scs_check/` | Additional SCS check results; currently includes sample 30. |
+| `all/basis_red_boxes.csv` | Auxiliary data related to basis reduction. |
 
-当前 `all/res.csv` 有 20 个样例。按现有结果统计：
+The current `all/res.csv` has 20 examples. Statistics from the existing results:
 
-| 指标 | 平均值 |
+| Metric | Average |
 |---|---:|
-| 完整基底数量 | 24.2 |
-| RL 剪枝后 | 9.4 |
-| NP 剪枝后 | 13.3 |
-| TSSOS 剪枝后 | 13.7 |
-| 随机剪枝后 | 21.2 |
+| Full basis size | 24.2 |
+| After RL pruning | 9.4 |
+| After NP pruning | 13.3 |
+| After TSSOS pruning | 13.7 |
+| RandomPrunedSize | 21.2 |
 
-当前 `all/qrl_results/summary.csv` 有 20 条 `optimal` 记录，最大重构残差约为 `2.68e-10`。
+The current `all/qrl_results/summary.csv` has 20 `optimal` records, with maximum reconstruction residual about `2.68e-10`.
 
-## `C1` 至 `C20` 归档目录
+## `C1` Through `C20` Archive Directories
 
-`C1` 到 `C20` 是按论文附录样例整理出的独立目录。每个目录包含：
+`C1` through `C20` are standalone directories organized from appendix examples. Each directory contains:
 
-| 文件/目录 | 内容 |
+| File/Directory | Content |
 |---|---|
-| `qrl_results/` | 该样例对应的 `Q_RL` CSV、NPZ、JSON。 |
-| `res.csv` | `all/res.csv` 中该样例的单行基准测试结果。 |
-| `result_real.csv` | `all/result_real.csv` 中该样例的单行多项式记录。 |
-| `polynomial.txt` | 该样例的多项式文本和 sample id。 |
-| `qrl_summary.csv` | `all/qrl_results/summary.csv` 中该样例的单行摘要。 |
-| `manifest.json` | 样例编号、sample id、QRL 文件数量和额外检查标记。 |
+| `qrl_results/` | `Q_RL` CSV, NPZ, and JSON for the example. |
+| `res.csv` | The single benchmark-result row for the example from `all/res.csv`. |
+| `result_real.csv` | The single polynomial record for the example from `all/result_real.csv`. |
+| `polynomial.txt` | The polynomial text and sample ID for the example. |
+| `qrl_summary.csv` | The single summary row for the example from `all/qrl_results/summary.csv`. |
+| `manifest.json` | Example number, sample ID, QRL file count, and extra-check flag. |
 
-样例映射如下：
+Example mapping:
 
-| C 编号 | sample id |
+| C ID | sample id |
 |---|---:|
 | C1 | 8 |
 | C2 | 11 |
@@ -215,19 +215,19 @@ python bench_sdp.py
 | C19 | 10 |
 | C20 | 33 |
 
-其中 `C7` 还包含 `qrl_results_scs_check/`，对应 sample 30 的额外 SCS 检查结果。
+`C7` also contains `qrl_results_scs_check/`, corresponding to additional SCS check results for sample 30.
 
-## `Q_RL` 输出格式
+## `Q_RL` Output Format
 
-`solve_sos_qrl.py` 对每个样例输出三个文件：
+`solve_sos_qrl.py` writes three files for each example:
 
-| 文件 | 内容 |
+| File | Content |
 |---|---|
-| `sample_<id>_<config>_Q_RL.csv` | Gram 矩阵 `Q_RL` 的数值矩阵。 |
-| `sample_<id>_<config>.npz` | 压缩数据包，包含 `Q_RL`、完整基底、RL 基底、active indices、秩、残差等。 |
-| `sample_<id>_<config>.json` | 可读元数据，包含多项式、基底单项式、求解状态、最小特征值、秩和残差。 |
+| `sample_<id>_<config>_Q_RL.csv` | Numeric matrix for the Gram matrix `Q_RL`. |
+| `sample_<id>_<config>.npz` | Compressed data package containing `Q_RL`, full basis, RL basis, active indices, rank, residual, and related data. |
+| `sample_<id>_<config>.json` | Readable metadata containing the polynomial, basis monomials, solve status, minimum eigenvalue, rank, and residual. |
 
-例如：
+Example:
 
 ```text
 all/qrl_results/sample_33_4n6d_Q_RL.csv
@@ -235,9 +235,9 @@ all/qrl_results/sample_33_4n6d.npz
 all/qrl_results/sample_33_4n6d.json
 ```
 
-## 模型配置
+## Model Configuration
 
-`solve_sos_qrl.py` 和 `all/bench_sdp.py` 使用同一套模型宽度配置：
+`solve_sos_qrl.py` and `all/bench_sdp.py` use the same model-width configuration:
 
 ```python
 MODEL_CONFIG = {
@@ -256,17 +256,17 @@ MODEL_CONFIG = {
 }
 ```
 
-模型权重默认从对应目录读取：
+Model weights are read from the corresponding directory by default:
 
 ```text
 <config>/model/train.pth
 ```
 
-例如 `3n6d/model/train.pth`。
+For example `3n6d/model/train.pth`.
 
-## 注意事项
+## Notes
 
-- 各实验目录脚本通常通过 `sys.path.append("..")` 引用 `src/`，建议在对应实验目录内运行 `generate.py`、`train.py`、`eval.py`。
-- `bench_sdp.py` 使用 `all/result_real.csv`，并假设对应配置目录下存在训练好的 `model/train.pth`。
-- 如果没有 MOSEK，`bench_sdp.py` 中的 MOSEK 计时会失败；可改用 `solve_sos_qrl.py --solver CLARABEL` 或 `--solver SCS` 做单样例验证。
-- 项目中部分源码注释存在历史编码问题，但核心 Python 标识符和当前 README 均按 UTF-8 使用。
+- Scripts in experiment directories usually import `src/` via `sys.path.append("..")`; run `generate.py`, `train.py`, and `eval.py` inside the corresponding experiment directory.
+- `bench_sdp.py` uses `all/result_real.csv` and assumes a trained `model/train.pth` exists in the corresponding configuration directory.
+- If MOSEK is unavailable, MOSEK timing in `bench_sdp.py` will fail; use `solve_sos_qrl.py --solver CLARABEL` or `--solver SCS` for single-example validation instead.
+- Some source comments in the project previously had historical encoding issues, but the core Python identifiers and current README use UTF-8.

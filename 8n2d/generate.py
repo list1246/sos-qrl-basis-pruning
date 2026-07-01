@@ -11,7 +11,7 @@ if __name__ == '__main__':
     degree = 2
     gen = SOSDataGenerator(num_vars=num_vars, degree=degree)
 
-    # 重新生成带 minimal_mask 的数据集
+    # Regenerate the dataset with minimal_mask
     data = gen.generate_dataset(total_samples=60000)
     gen.save_to_json(data, f"./data/train.json")
 

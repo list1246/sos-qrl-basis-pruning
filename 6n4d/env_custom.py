@@ -10,7 +10,7 @@ class SOSPruningEnvBonus(SOSPruningEnvGT):
         self.steps += 1
         time_limit_reached = (self.steps >= self.max_steps_limit)
 
-        # --- A: STOP 动作 ---
+        # --- A: STOP action ---
         if action_idx == self.mask_dim:
             is_feasible = self._check_feasibility_by_gt(self.current_mask)
             active_count = self.current_mask.sum().item()
@@ -24,7 +24,7 @@ class SOSPruningEnvBonus(SOSPruningEnvGT):
                 if active_count < self.min_feasible_size:
                     self.min_feasible_size = active_count
 
-                # 归一化结果奖励
+                # Normalize the terminal reward
                 if self.initial_gap > 0:
                     gap_clamped = max(0, current_gap)
                     completion_ratio = (self.initial_gap - gap_clamped) / self.initial_gap
@@ -35,25 +35,25 @@ class SOSPruningEnvBonus(SOSPruningEnvGT):
 
             return self._get_state(), reward, done, {}
 
-        # --- B: 剪枝动作 ---
+        # --- B: Pruning action ---
         is_critical = (self.gt_mask_tensor[action_idx] == 1)
 
         if is_critical:
-            # === 剪错关键项 ===
+            # === Pruned a critical term ===
 
             if is_eval:
-                # [Evaluation Mode] 严格模式：剪错立即停止，不算完成
-                reward = 0.0  # 测试时 reward 不重要，重要的是 Gap 停在了哪里
+                # [Evaluation Mode] Strict mode: stop immediately after pruning a critical term; do not count it as completed
+                reward = 0.0  # During testing, reward is not important; the important value is where the Gap stops
                 done = True
-                # Gap 保持在剪之前的状态（因为没剪下去），这代表了 Agent 的真实能力边界
+                # Gap remains at the pre-pruning state (because the term was not removed), representing the true capability boundary of the Agent
             else:
-                # [Training Mode] 软惩罚：给负分，继续探索
+                # [Training Mode] Soft penalty: give a negative score and continue exploration
                 reward = -0.6
                 done = False
                 if time_limit_reached:
                     done = True
         else:
-            # === 剪对冗余项 ===
+            # === Correctly pruned a redundant term ===
             prev_active_count = self.current_mask.sum().item()
             prev_gap = prev_active_count - self.current_gt_size
 
@@ -65,7 +65,7 @@ class SOSPruningEnvBonus(SOSPruningEnvGT):
             if curr_active_count < self.min_feasible_size:
                 self.min_feasible_size = curr_active_count
 
-            # 势能差奖励
+            # Potential-difference reward
             pot_old = self._calculate_potential(prev_gap)
             pot_new = self._calculate_potential(curr_gap)
             reward = pot_new - pot_old

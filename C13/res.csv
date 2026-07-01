@@ -1,2 +1,2 @@
-﻿"序号","变元数","次数","全基数量","RL剪枝后","NP剪枝后","TSSOS剪枝后","随机剪枝后","全基_SDP时间(s)","RL_SDP时间(s)","NP_SDP时间(s)","TSSOS_SDP时间(s)","随机剪枝_SDP时间(s)","RL_加速比","NP_加速比","TSSOS_加速比","随机剪枝_加速比"
+﻿"SampleID","NumVars","Degree","FullBasisSize","RLPrunedSize","NPPrunedSize","TSSOSPrunedSize","RandomPrunedSize","FullBasis_SDPTime(s)","RL_SDPTime(s)","NP_SDPTime(s)","TSSOS_SDPTime(s)","RandomPruning_SDPTime(s)","RL_Speedup","NP_Speedup","TSSOS_Speedup","RandomPruning_Speedup"
 "59","3","8","35","12","15","12","33","0.491","0.039","0.050","0.039","0.340","12.62x","9.84x","12.64x","1.44x"

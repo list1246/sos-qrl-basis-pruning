@@ -11,28 +11,28 @@ from src import *
 
 def is_in_convex_hull(point, hull_points):
     """
-    使用线性规划判断点是否在给定点集的凸包内。
-    原理：是否存在 lambda_i >= 0 且 sum(lambda_i) = 1, 使得 sum(lambda_i * hull_points_i) = point
+    Use linear programming to determine whether a point lies in the convex hull of a given point set.
+    Principle: whether there exist lambda_i >= 0 with sum(lambda_i) = 1 such that sum(lambda_i * hull_points_i) = point
     """
     n_points = hull_points.shape[0]
-    # 目标函数系数 (我们只关心可行性，设为 0)
+    # Objective coefficients (only feasibility matters, so set them to 0)
     c = np.zeros(n_points)
-    # 等式约束: A_eq @ lambda = [point_x, point_y, ..., 1]
-    # 最后一行是 sum(lambda) = 1
+    # Equality constraints: A_eq @ lambda = [point_x, point_y, ..., 1]
+    # The last row is sum(lambda) = 1
     A_eq = np.vstack([hull_points.T, np.ones(n_points)])
     b_eq = np.concatenate([point, [1]])
     
-    # 使用 highs 方法，速度较快且稳定
+    # Use the highs method; it is faster and stable
     res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=(0, 1), method='highs')
     return res.success
 
 def evaluate_newton_polytope(test_json_path, num_vars, degree):
-    # 1. 初始化生成器以获取单项式与指数的映射关系
+    # 1. Initialize the generator to obtain the mapping between monomials and exponents
     gen = SOSDataGenerator(num_vars=num_vars, degree=degree)
-    basis_monomials = np.array(gen.basis_monomials) # 形状: (mask_dim, n)
-    poly_monomials = np.array(gen.poly_monomials)   # 形状: (coeff_dim, n)
+    basis_monomials = np.array(gen.basis_monomials) # shape: (mask_dim, n)
+    poly_monomials = np.array(gen.poly_monomials)   # shape: (coeff_dim, n)
     
-    # 2. 加载数据
+    # 2. Load data
     with open(test_json_path, 'r') as f:
         dataset = json.load(f)['data']
     
@@ -49,12 +49,12 @@ def evaluate_newton_polytope(test_json_path, num_vars, degree):
         
         start_time = time.time()
         
-        # 3. 提取当前多项式的支持集 S (系数非 0 的项的指数)
+        # 3. Extract the support set S of the current polynomial (exponents of terms with nonzero coefficients)
         support_indices = np.where(np.abs(coeffs) > 1e-9)[0]
         S = poly_monomials[support_indices]
         
-        # 4. 判定基向量过滤
-        # 根据 Reznick 定理: beta 属于 1/2 NP(P) <=> 2 * beta 属于 NP(P)
+        # 4. Filter basis vectors
+        # By Reznick theorem: beta belongs to 1/2 NP(P) <=> 2 * beta belongs to NP(P)
         np_basis_count = 0
         for beta in basis_monomials:
             target = 2 * beta
@@ -63,7 +63,7 @@ def evaluate_newton_polytope(test_json_path, num_vars, degree):
         
         end_time = time.time()
         
-        # 5. 计算指标
+        # 5. Compute metrics
         gap = np_basis_count - gt_size
         gaps.append(gap)
         durations.append(end_time - start_time)
@@ -71,7 +71,7 @@ def evaluate_newton_polytope(test_json_path, num_vars, degree):
         if (i + 1) % 100 == 0:
             print(f"Processed {i+1}/{total_samples}...")
 
-    # 6. 输出结果
+    # 6. Output results
     avg_gap = np.mean(gaps)
     avg_time = np.mean(durations)
     
@@ -83,5 +83,5 @@ def evaluate_newton_polytope(test_json_path, num_vars, degree):
     print("="*30)
 
 if __name__ == "__main__":
-    # 根据你的 generate.py 配置参数
+    # Based on the configuration parameters in generate.py
     evaluate_newton_polytope("./data/test.json", num_vars=7, degree=4)

@@ -1,2 +1,2 @@
-﻿"序号","多项式","变元数","次数","全基数量","RL剪枝后","NP剪枝后","TSSOS剪枝后"
+﻿"SampleID","Polynomial","NumVars","Degree","FullBasisSize","RLPrunedSize","NPPrunedSize","TSSOSPrunedSize"
 "58","7*(x1**2 + x2**2)**4 + 7*(x1**2 + x3**2)**4 + 7*(x2**2 + x3**2)**4 - 4*(x1**2 + x2**2 + x3**2)**4","3","8","35","10","15","15"

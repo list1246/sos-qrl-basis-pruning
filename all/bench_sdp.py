@@ -1,10 +1,10 @@
 """
-综合基准测试：对 all/result_real.csv 中24个样本，一站式输出所有基准结果到 all/res.csv
+Comprehensive benchmark: run all benchmark results for 24 samples in all/result_real.csv and write them to all/res.csv
 
-包含以下测试：
-1. 各方法剪枝结果对比 — RL / NP / TSSOS / 随机剪枝基线
-2. SDP求解时间基准 — 全基 / RL / NP / TSSOS / 随机剪枝 (MOSEK, 中位数)
-3. 加速比 — 全基时间 ÷ 各种剪枝后SDP时间
+Includes the following tests:
+1. Pruning result comparison across methods — RL / NP / TSSOS / random-pruning baseline
+2. SDP solve-time benchmark — Full basis / RL / NP / TSSOS / Random pruning (MOSEK, median)
+3. speedup — full-basis time ÷ SDP time after each pruning method
 """
 
 import sys
@@ -87,7 +87,7 @@ def is_in_convex_hull(point, hull_points):
 
 
 def newton_polytope_prune_indices(generator, support_exponents):
-    """NP剪枝，返回保留的基索引列表"""
+    """NP pruning; return the retained basis index list"""
     S = np.array(support_exponents, dtype=float)
     basis_monomials = np.array(generator.basis_monomials)
     indices = []
@@ -99,7 +99,7 @@ def newton_polytope_prune_indices(generator, support_exponents):
 
 
 def tssos_prune_indices(basis_monomials, support_set):
-    """TSSOS项稀疏性剪枝，返回保留的基索引列表"""
+    """TSSOS term-sparsity pruning; return the retained basis index list"""
     support = set(support_set)
     indices = []
     for i, bi in enumerate(basis_monomials):
@@ -115,7 +115,7 @@ def tssos_prune_indices(basis_monomials, support_set):
 
 
 def build_sdp_problem(generator, raw_coeffs, active_indices):
-    """构建SDP问题，返回 cvxpy Problem 对象（不求解）"""
+    """Build the SDP problem and return a cvxpy Problem object (without solving)"""
     k = len(active_indices)
     if k == 0:
         return None
@@ -146,7 +146,7 @@ def build_sdp_problem(generator, raw_coeffs, active_indices):
 
 
 def solve_sdp_timed(generator, raw_coeffs, active_indices, n_runs=3):
-    """用MOSEK求解SDP，跑n_runs次取中位数，返回 (是否可行, 求解时间秒)"""
+    """Solve the SDP with MOSEK, run n_runs times, take the median, and return (feasible, solve time in seconds)"""
     prob = build_sdp_problem(generator, raw_coeffs, active_indices)
     if prob is None:
         return False, -1.0
@@ -154,7 +154,7 @@ def solve_sdp_timed(generator, raw_coeffs, active_indices, n_runs=3):
     times = []
     feasible = False
     for _ in range(n_runs):
-        # 每次需要重建problem，因为solve会修改内部状态
+        # Rebuild the problem each time because solve mutates internal state
         prob = build_sdp_problem(generator, raw_coeffs, active_indices)
         try:
             t0 = time.perf_counter()
@@ -164,7 +164,7 @@ def solve_sdp_timed(generator, raw_coeffs, active_indices, n_runs=3):
             if prob.status in ('optimal', 'optimal_inaccurate'):
                 feasible = True
         except Exception as e:
-            print(f"    MOSEK异常: {e}")
+            print(f"    MOSEK exception: {e}")
             return False, -1.0
 
     median_time = sorted(times)[len(times) // 2]
@@ -172,7 +172,7 @@ def solve_sdp_timed(generator, raw_coeffs, active_indices, n_runs=3):
 
 
 def verify_sdp_quick(generator, raw_coeffs, active_indices):
-    """快速SDP验证（用SCS），用于RL SDP-in-the-loop"""
+    """Quick SDP verification (with SCS), used for RL SDP-in-the-loop"""
     k = len(active_indices)
     if k == 0:
         return False
@@ -213,7 +213,7 @@ def verify_sdp_quick(generator, raw_coeffs, active_indices):
 
 
 def rl_prune_get_indices(agent, generator, raw_coeffs):
-    """SDP-in-the-loop RL推理，返回剪枝后的活跃基索引列表"""
+    """SDP-in-the-loop RL inference; return the active basis indices after pruning"""
     coeffs_t = torch.from_numpy(raw_coeffs).float().to(DEVICE)
     state_coeffs = torch.sign(coeffs_t) * torch.log1p(torch.abs(coeffs_t))
     state_mask = torch.ones(generator.mask_dim, dtype=torch.long, device=DEVICE)
@@ -237,28 +237,28 @@ def rl_prune_get_indices(agent, generator, raw_coeffs):
     return torch.nonzero(state_mask).squeeze(-1).tolist()
 
 
-# ==================== 随机剪枝基线 ====================
+# ==================== random-pruning baseline ====================
 
 def random_prune_greedy(generator, raw_coeffs, seed=None):
     """
-    随机顺序贪婪剪枝基线（与RL推理行为一致）。
+    Random-order greedy pruning baseline (consistent with RL inference behavior).
 
-    算法：
-    1. 以指定 seed 初始化随机数生成器（None 则用系统随机状态）
-    2. 生成 [0, mask_dim) 的随机排列
-    3. 按排列顺序依次尝试剪除每个基元素：
-       - 暂移除，用SCS验证SDP可行性
-       - 可行 → 保留移除，继续尝试下一个
-       - 不可行 → 恢复该元素，立即 STOP（不再尝试后续元素）
-    4. 返回最终保留的基索引列表
+    Algorithm:
+    1. Initialize the random number generator with the specified seed (None uses the system random state)
+    2. Generate a random permutation of [0, mask_dim)
+    3. Try pruning each basis element in permutation order:
+       - Temporarily remove it and verify SDP feasibility with SCS
+       - Feasible -> keep it removed and continue to the next one
+       - Infeasible -> restore the element and STOP immediately (do not try later elements)
+    4. Return the final retained basis index list
 
     Parameters:
         generator: SOSDataGenerator
-        raw_coeffs: 原始系数向量
-        seed: 随机种子，None 表示不固定种子
+        raw_coeffs: raw coefficient vector
+        seed: random seed; None means the seed is not fixed
 
     Returns:
-        active_indices: 保留的基索引列表
+        active_indices: retained basis index list
     """
     rng = random.Random(seed)
     mask_dim = generator.mask_dim
@@ -277,7 +277,7 @@ def random_prune_greedy(generator, raw_coeffs, seed=None):
 
         sdp_ok = verify_sdp_quick(generator, raw_coeffs, active_indices)
         if not sdp_ok:
-            # 剪到关键项了 —— 恢复并立即停止（与RL评估模式一致）
+            # A critical term was pruned: restore it and stop immediately (consistent with RL evaluation mode)
             active_mask[idx] = True
             break
 
@@ -289,48 +289,48 @@ def main():
     project_dir = os.path.dirname(base_dir)
     csv_path = os.path.join(base_dir, "result_real.csv")
 
-    # 读取24个样本
+    # Read 24 samples
     samples = []
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             samples.append(row)
 
-    print(f"读取到 {len(samples)} 个样本")
+    print(f"Loaded {len(samples)} samples")
 
     generator_cache = {}
     model_cache = {}
 
-    # MOSEK warmup: 首次调用有初始化开销，先跑一个小问题预热
-    print("MOSEK预热中...")
+    # MOSEK warmup: The first call has initialization overhead; run a small warmup problem first
+    print("MOSEKwarming up...")
     _Q = cp.Variable((3, 3), symmetric=True)
     _prob = cp.Problem(cp.Minimize(0), [_Q >> 0, _Q[0, 0] == 1])
     _prob.solve(solver=cp.MOSEK, verbose=False)
-    print("MOSEK预热完成\n")
+    print("MOSEKwarmup complete\n")
 
     results = []
     for i, row in enumerate(samples):
-        no = row['序号']
-        expr_str = row['多项式'].strip()
-        expected_rl = int(row['RL剪枝后'])
-        expected_np = int(row['NP剪枝后'])
-        expected_tssos = int(row['TSSOS剪枝后'])
+        no = row['SampleID']
+        expr_str = row['Polynomial'].strip()
+        expected_rl = int(row['RLPrunedSize'])
+        expected_np = int(row['NPPrunedSize'])
+        expected_tssos = int(row['TSSOSPrunedSize'])
 
         nvars, degree = detect_poly_info(expr_str)
         dir_name = f"{nvars}n{degree}d"
-        full_basis = int(row['全基数量'])
+        full_basis = int(row['FullBasisSize'])
 
-        print(f"\n[{i+1}/{len(samples)}] 序号{no}: {dir_name}, 全基={full_basis}")
-        print(f"  期望: RL={expected_rl}, NP={expected_np}, TSSOS={expected_tssos}")
+        print(f"\n[{i+1}/{len(samples)}] SampleID{no}: {dir_name}, Full basis={full_basis}")
+        print(f"  expected: RL={expected_rl}, NP={expected_np}, TSSOS={expected_tssos}")
 
-        # 获取 generator
+        # Get the generator
         if dir_name not in generator_cache:
             generator_cache[dir_name] = SOSDataGenerator(
                 num_vars=nvars, degree=degree
             )
         generator = generator_cache[dir_name]
 
-        # 解析多项式
+        # Parse the polynomial
         terms = parse_sympy_expr(expr_str, nvars)
         raw_coeffs = np.zeros(generator.coeff_dim, dtype=np.float32)
         skip = False
@@ -338,7 +338,7 @@ def main():
             if mon in generator.poly_monomials_to_idx:
                 raw_coeffs[generator.poly_monomials_to_idx[mon]] = coeff
             else:
-                print(f"  [跳过] 单项式 {mon} 不在基中")
+                print(f"  [Skip] Monomial {mon} is not in the basis")
                 skip = True
                 break
         if skip:
@@ -346,7 +346,7 @@ def main():
 
         support_exponents = list(terms.keys())
 
-        # === RL 剪枝 ===
+        # === RL pruning ===
         config = MODEL_CONFIG[dir_name]
         model_path = os.path.join(project_dir, dir_name, "model", "train.pth")
         if dir_name not in model_cache:
@@ -366,29 +366,29 @@ def main():
 
         rl_indices = rl_prune_get_indices(agent, generator, raw_coeffs)
         rl_size = len(rl_indices)
-        print(f"  RL剪枝: {rl_size} (期望{expected_rl})")
+        print(f"  RL pruning: {rl_size} (expected {expected_rl})")
 
-        # === NP 剪枝 ===
+        # === NP pruning ===
         np_indices = newton_polytope_prune_indices(generator, support_exponents)
         np_size = len(np_indices)
-        print(f"  NP剪枝: {np_size} (期望{expected_np})")
+        print(f"  NP pruning: {np_size} (expected {expected_np})")
 
-        # === TSSOS 剪枝 ===
+        # === TSSOS pruning ===
         tssos_indices = tssos_prune_indices(generator.basis_monomials, support_exponents)
         tssos_size = len(tssos_indices)
-        print(f"  TSSOS剪枝: {tssos_size} (期望{expected_tssos})")
+        print(f"  TSSOS pruning: {tssos_size} (expected {expected_tssos})")
 
-        # === 随机剪枝基线 ===
+        # === random-pruning baseline ===
         rand_indices = random_prune_greedy(generator, raw_coeffs, None)
         rand_size = len(rand_indices)
-        print(f"  随机剪枝: {rand_size}")
+        print(f"  Random pruning: {rand_size}")
 
-        # === 全基 SDP 求解时间 (MOSEK) — 基准对照 ===
-        print(f"  正在用MOSEK求解SDP...")
+        # === Full-basis SDP solve time (MOSEK) — baseline reference ===
+        print(f"  Solving SDP with MOSEK...")
 
         full_indices = list(range(generator.mask_dim))
         full_ok, full_time = solve_sdp_timed(generator, raw_coeffs, full_indices)
-        print(f"    全基 SDP: {'OK' if full_ok else 'FAIL'}, {full_time:.3f}s")
+        print(f"    Full-basis SDP: {'OK' if full_ok else 'FAIL'}, {full_time:.3f}s")
 
         rl_ok, rl_time = solve_sdp_timed(generator, raw_coeffs, rl_indices)
         print(f"    RL SDP: {'OK' if rl_ok else 'FAIL'}, {rl_time:.3f}s")
@@ -400,67 +400,67 @@ def main():
         print(f"    TSSOS SDP: {'OK' if tssos_ok else 'FAIL'}, {tssos_time:.3f}s")
 
         rand_ok, rand_time = solve_sdp_timed(generator, raw_coeffs, rand_indices)
-        print(f"    随机剪枝 SDP: {'OK' if rand_ok else 'FAIL'}, {rand_time:.3f}s")
+        print(f"    Random-pruning SDP: {'OK' if rand_ok else 'FAIL'}, {rand_time:.3f}s")
 
-        # 加速比（全基时间 / 剪枝后时间）
+        # speedup(full-basis time / post-pruning time)
         rl_speedup = full_time / rl_time if (full_ok and rl_ok and rl_time > 0) else 0
         np_speedup = full_time / np_time if (full_ok and np_ok and np_time > 0) else 0
         tssos_speedup = full_time / tssos_time if (full_ok and tssos_ok and tssos_time > 0) else 0
         rand_speedup = full_time / rand_time if (full_ok and rand_ok and rand_time > 0) else 0
 
         results.append({
-            '序号': no,
-            '变元数': nvars,
-            '次数': degree,
-            '全基数量': full_basis,
-            'RL剪枝后': rl_size,
-            'NP剪枝后': np_size,
-            'TSSOS剪枝后': tssos_size,
-            '随机剪枝后': rand_size,
-            '全基_SDP时间(s)': f"{full_time:.3f}" if full_ok else "N/A",
-            'RL_SDP时间(s)': f"{rl_time:.3f}" if rl_ok else "N/A",
-            'NP_SDP时间(s)': f"{np_time:.3f}" if np_ok else "N/A",
-            'TSSOS_SDP时间(s)': f"{tssos_time:.3f}" if tssos_ok else "N/A",
-            '随机剪枝_SDP时间(s)': f"{rand_time:.3f}" if rand_ok else "N/A",
-            'RL_加速比': f"{rl_speedup:.2f}x" if rl_speedup > 0 else "N/A",
-            'NP_加速比': f"{np_speedup:.2f}x" if np_speedup > 0 else "N/A",
-            'TSSOS_加速比': f"{tssos_speedup:.2f}x" if tssos_speedup > 0 else "N/A",
-            '随机剪枝_加速比': f"{rand_speedup:.2f}x" if rand_speedup > 0 else "N/A",
+            'SampleID': no,
+            'NumVars': nvars,
+            'Degree': degree,
+            'FullBasisSize': full_basis,
+            'RLPrunedSize': rl_size,
+            'NPPrunedSize': np_size,
+            'TSSOSPrunedSize': tssos_size,
+            'RandomPrunedSize': rand_size,
+            'FullBasis_SDPTime(s)': f"{full_time:.3f}" if full_ok else "N/A",
+            'RL_SDPTime(s)': f"{rl_time:.3f}" if rl_ok else "N/A",
+            'NP_SDPTime(s)': f"{np_time:.3f}" if np_ok else "N/A",
+            'TSSOS_SDPTime(s)': f"{tssos_time:.3f}" if tssos_ok else "N/A",
+            'RandomPruning_SDPTime(s)': f"{rand_time:.3f}" if rand_ok else "N/A",
+            'RL_Speedup': f"{rl_speedup:.2f}x" if rl_speedup > 0 else "N/A",
+            'NP_Speedup': f"{np_speedup:.2f}x" if np_speedup > 0 else "N/A",
+            'TSSOS_Speedup': f"{tssos_speedup:.2f}x" if tssos_speedup > 0 else "N/A",
+            'RandomPruning_Speedup': f"{rand_speedup:.2f}x" if rand_speedup > 0 else "N/A",
         })
 
-    # 写入 res.csv
+    # Write res.csv
     out_path = os.path.join(base_dir, "res.csv")
-    fieldnames = ['序号', '变元数', '次数', '全基数量',
-                  'RL剪枝后', 'NP剪枝后', 'TSSOS剪枝后', '随机剪枝后',
-                  '全基_SDP时间(s)', 'RL_SDP时间(s)', 'NP_SDP时间(s)',
-                  'TSSOS_SDP时间(s)', '随机剪枝_SDP时间(s)',
-                  'RL_加速比', 'NP_加速比', 'TSSOS_加速比', '随机剪枝_加速比']
+    fieldnames = ['SampleID', 'NumVars', 'Degree', 'FullBasisSize',
+                  'RLPrunedSize', 'NPPrunedSize', 'TSSOSPrunedSize', 'RandomPrunedSize',
+                  'FullBasis_SDPTime(s)', 'RL_SDPTime(s)', 'NP_SDPTime(s)',
+                  'TSSOS_SDPTime(s)', 'RandomPruning_SDPTime(s)',
+                  'RL_Speedup', 'NP_Speedup', 'TSSOS_Speedup', 'RandomPruning_Speedup']
     with open(out_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(results)
 
-    # 汇总统计
+    # Summary statistics
     print("\n" + "=" * 60)
-    print("汇总统计（各方法平均保留基数量）")
+    print("Summary statistics (average retained basis size by method)")
     print("=" * 60)
-    rl_all = [r['RL剪枝后'] for r in results]
-    np_all = [r['NP剪枝后'] for r in results]
-    tssos_all = [r['TSSOS剪枝后'] for r in results]
-    rand_all = [r['随机剪枝后'] for r in results]
-    print(f"  RL平均:      {np.mean(rl_all):.1f}")
-    print(f"  NP平均:      {np.mean(np_all):.1f}")
-    print(f"  TSSOS平均:   {np.mean(tssos_all):.1f}")
-    print(f"  随机剪枝平均: {np.mean(rand_all):.1f}")
+    rl_all = [r['RLPrunedSize'] for r in results]
+    np_all = [r['NPPrunedSize'] for r in results]
+    tssos_all = [r['TSSOSPrunedSize'] for r in results]
+    rand_all = [r['RandomPrunedSize'] for r in results]
+    print(f"  RL average:      {np.mean(rl_all):.1f}")
+    print(f"  NP average:      {np.mean(np_all):.1f}")
+    print(f"  TSSOS average:   {np.mean(tssos_all):.1f}")
+    print(f"  Random pruning average: {np.mean(rand_all):.1f}")
     improvement = np.mean([(r - rm) / rm * 100 for r, rm in zip(rl_all, rand_all) if rm > 0])
-    print(f"  RL相比随机剪枝平均改进: {improvement:.1f}%")
+    print(f"  RL average improvement over random pruning: {improvement:.1f}%")
     rl_better = sum(1 for r, rm in zip(rl_all, rand_all) if r < rm)
     rl_worse = sum(1 for r, rm in zip(rl_all, rand_all) if r > rm)
     rl_tie = sum(1 for r, rm in zip(rl_all, rand_all) if abs(r - rm) < 1e-6)
-    print(f"  RL优于随机: {rl_better} 个, RL劣于随机: {rl_worse} 个, 持平: {rl_tie} 个")
+    print(f"  RL better than random: {rl_better} samples, RL worse than random: {rl_worse} samples, tie: {rl_tie} samples")
 
-    print(f"\n完成！结果已写入 {out_path}")
-    print(f"共 {len(results)} 个样本")
+    print(f"\nDone. Results written to {out_path}")
+    print(f"Total {len(results)} samples")
 
 
 if __name__ == "__main__":
