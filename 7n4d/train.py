@@ -28,9 +28,9 @@ if __name__ == '__main__':
 
     # 测试环境：使用 test.json，设一个很大的数以加载全部测试集 (train_data_size=100000)
     # 注意：env.py 的逻辑是 "如果数据量 > target_size 则采样"，设大一点就能全量加载
-    test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=100000)
+    test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=10000)
 
-    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=1024, embed_dim=32, total_episode=TOTAL_EPISODES)
+    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=4096, embed_dim=256, total_episode=TOTAL_EPISODES)
 
     print("\n" + "=" * 60)
     print("STARTING RL TRAINING (With Train/Test Evaluation)")
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     eval_test_gaps = []
     eval_epoch_history = []
 
-    for episode in range(TOTAL_EPISODES):
+    for episode in range(TOTAL_EPISODES+800000):
         # --- 1. 训练循环 (仅使用 env) ---
         state = env.reset()
         ep_reward = 0
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         if episode % 20 == 0:
             agent.update_target_network()
         
-        if agent.scheduler is not None and len(agent.memory) > agent.batch_size:
+        if agent.scheduler is not None and len(agent.memory) > agent.batch_size and episode < TOTAL_EPISODES:
             agent.scheduler.step()
 
         # --- 2. 日志打印 ---

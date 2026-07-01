@@ -1,0 +1,2 @@
+﻿"sample_id","config","full_basis","rl_basis","q_csv","min_eig","rank","residual_linf","status"
+"22","3n6d","20","6","sample_22_3n6d_Q_RL.csv","2.88394486935856E-16","3","4.44089209850063E-16","optimal"

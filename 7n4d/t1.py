@@ -24,13 +24,13 @@ if __name__ == '__main__':
 
     # === 修改点 2：初始化两个环境 ===
     # 训练环境：使用 train.json，限制采样 10000 条用于训练 (train_data_size=10000)
-    env = SOSPruningEnvGT(generator, DATASET_TRAIN, device=DEVICE, train_data_size=5000)
+    env = SOSPruningEnvGT(generator, DATASET_TRAIN, device=DEVICE, train_data_size=10000)
 
     # 测试环境：使用 test.json，设一个很大的数以加载全部测试集 (train_data_size=100000)
     # 注意：env.py 的逻辑是 "如果数据量 > target_size 则采样"，设大一点就能全量加载
-    test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=100000)
+    test_env = SOSPruningEnvGT(generator, DATASET_TEST, device=DEVICE, train_data_size=10000)
 
-    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=1024, embed_dim=32, total_episode=TOTAL_EPISODES)
+    agent = DoubleDQNAgentPER(generator.coeff_dim, generator.mask_dim, device=DEVICE, base_dim=2048, embed_dim=64, total_episode=TOTAL_EPISODES)
 
     print("\n" + "=" * 60)
     print("STARTING RL TRAINING (With Train/Test Evaluation)")
@@ -47,9 +47,7 @@ if __name__ == '__main__':
     eval_test_gaps = []
     eval_epoch_history = []
 
-    FINE_TUNE_LR = 1e-5
-
-    for episode in range(TOTAL_EPISODES+400000):
+    for episode in range(TOTAL_EPISODES+100000):
         # --- 1. 训练循环 (仅使用 env) ---
         state = env.reset()
         ep_reward = 0
@@ -79,11 +77,6 @@ if __name__ == '__main__':
         
         if agent.scheduler is not None and len(agent.memory) > agent.batch_size and episode < TOTAL_EPISODES:
             agent.scheduler.step()
-        
-        if episode == TOTAL_EPISODES:
-            print(f"\n[Training] Reached 150k steps. Manually resetting LR to {FINE_TUNE_LR}...")
-            for param_group in agent.optimizer.param_groups:
-                param_group['lr'] = FINE_TUNE_LR
 
         # --- 2. 日志打印 ---
         if (episode + 1) % 100 == 0:
