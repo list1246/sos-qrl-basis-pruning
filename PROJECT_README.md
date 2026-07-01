@@ -1,6 +1,6 @@
 ﻿# SOS 基底剪枝与 QRL 结果整理项目
 
-本文档根据当前目录 `C:\Users\zhake\Downloads\Thesis\Thesis` 的实际文件重新整理。项目主要用于训练强化学习模型剪枝 SOS Gram 矩阵基底，并对真实多项式样例生成、验证和归档对应的 `Q_RL` 结果。
+本文档根据当前目录 `Thesis` 的实际文件重新整理。项目主要用于训练强化学习模型剪枝 SOS Gram 矩阵基底，并对真实多项式样例生成、验证和归档对应的 `Q_RL` 结果。
 
 ## 项目目标
 
@@ -103,7 +103,7 @@ Thesis/
 在项目根目录运行：
 
 ```powershell
-cd C:\Users\zhake\Downloads\Thesis\Thesis
+cd Thesis
 ```
 
 生成某个配置的数据：
@@ -130,7 +130,7 @@ python eval.py
 对真实样例求解 `Q_RL`：
 
 ```powershell
-cd C:\Users\zhake\Downloads\Thesis\Thesis
+cd Thesis
 python solve_sos_qrl.py --csv all\result_real.csv --all --outdir all\qrl_results
 ```
 
